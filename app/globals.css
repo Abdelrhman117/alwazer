@@ -1,0 +1,98 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* ── ألوان الوزير الأساسية ── */
+  --wazer-yellow: #F5C518;
+  --wazer-yellow-light: #FDE68A;
+  --wazer-yellow-dark: #D97706;
+  --wazer-navy: #0F1F3D;
+  --wazer-navy-mid: #1A3260;
+  --wazer-navy-light: #243B6E;
+  --wazer-navy-muted: #2D4A82;
+  --wazer-white: #FAFBFF;
+
+  --background: #F4F6FB;
+  --foreground: #0F1F3D;
+  --card: #FFFFFF;
+  --card-foreground: #0F1F3D;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F1F3D;
+  --primary: #0F1F3D;
+  --primary-foreground: #FAFBFF;
+  --secondary: #EEF1FA;
+  --secondary-foreground: #1A3260;
+  --muted: #E8EDF8;
+  --muted-foreground: #4A5A8A;
+  --accent: #F5C518;
+  --accent-foreground: #0F1F3D;
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+  --border: #DCE3F5;
+  --input: #DCE3F5;
+  --ring: #F5C518;
+  --radius: 0.75rem;
+
+  --sidebar: #0F1F3D;
+  --sidebar-foreground: #E8EDF8;
+  --sidebar-primary: #F5C518;
+  --sidebar-primary-foreground: #0F1F3D;
+  --sidebar-accent: #1A3260;
+  --sidebar-accent-foreground: #FAFBFF;
+  --sidebar-border: #243B6E;
+  --sidebar-ring: #F5C518;
+
+  --success: #16A34A;
+  --success-foreground: #FFFFFF;
+  --warning: #F5C518;
+  --warning-foreground: #0F1F3D;
+
+  --chart-1: #F5C518;
+  --chart-2: #0F1F3D;
+  --chart-3: #16A34A;
+  --chart-4: #2563EB;
+  --chart-5: #DC2626;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Cairo', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: #EEF1FA; }
+::-webkit-scrollbar-thumb { background: #D97706; border-radius: 99px; }
+
+/* ── Badge status colors ── */
+.status-confirmed  { background: #DCFCE7; color: #15803D; border: 1px solid #86EFAC; }
+.status-pending    { background: #FEF9C3; color: #854D0E; border: 1px solid #FDE047; }
+.status-inprogress { background: #DBEAFE; color: #1D4ED8; border: 1px solid #93C5FD; }
+.status-delivered  { background: #F3E8FF; color: #7E22CE; border: 1px solid #C4B5FD; }
+.status-closed     { background: #F1F5F9; color: #475569; border: 1px solid #CBD5E1; }
+
+/* ── Print styles ── */
+@media print {
+  nav, aside, .no-print { display: none !important; }
+  body { background: white !important; }
+  @page { margin: 8mm; }
+}
+
+/* ── Animations ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.3s ease forwards; }
+
+@keyframes pulse-yellow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245,197,24,0.4); }
+  50%       { box-shadow: 0 0 0 8px rgba(245,197,24,0); }
+}
+.pulse-yellow { animation: pulse-yellow 2s infinite; }
