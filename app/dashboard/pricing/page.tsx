@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calculator, Trash2, Box, TrendingUp, AlertCircle } from "lucide-react"
+import { Calculator, Trash2, TrendingUp } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/lib/auth-context"
 import { db } from "@/lib/firebase"
@@ -19,9 +19,6 @@ export default function PricingPage() {
   const [paperList, setPaperList] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [printFormOpen, setPrintFormOpen] = useState(false)
-  const [paperEditOpen, setPaperEditOpen] = useState(false)
-  const [editingPaperId, setEditingPaperId] = useState<string | null>(null)
-  const [editingPrice, setEditingPrice] = useState("")
 
   const [pService, setPService] = useState("")
   const [pPrice, setPPrice] = useState("")
@@ -140,13 +137,6 @@ export default function PricingPage() {
     await persist(newList, paperList)
   }
 
-  async function updatePaperPrice(paperId: string, field: "priceSalim" | "priceJayir") {
-    const updated = paperList.map((p) => p.id === paperId ? { ...p, [field]: parseFloat(editingPrice) || 0 } : p)
-    setPaperList(updated)
-    await persist(pricingList, updated)
-    setPaperEditOpen(false); setEditingPaperId(null)
-    toast.success("تم تحديث السعر")
-  }
 
   if (loading) {
     return <div className="flex h-96 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>
@@ -183,48 +173,6 @@ export default function PricingPage() {
         </table>
       </Card>
 
-      {/* Paper List */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-3"><Box className="w-8 h-8 text-amber-600" /><h2 className="text-2xl font-black text-slate-800">قائمة الخامات (الورق)</h2></div>
-        {["الطباعة", "الكشكول", "فستاني"].map((category) => {
-          const papers = paperList.filter((p) => p.category === category)
-          if (!papers.length) return null
-          return (
-            <Card key={category} className="border-none shadow-lg overflow-hidden">
-              <CardHeader className="bg-amber-50 border-b border-amber-200"><CardTitle className="text-lg font-black text-amber-900">{category}</CardTitle></CardHeader>
-              <CardContent className="p-0">
-                <table className="w-full text-right text-sm">
-                  <thead className="bg-amber-100 text-amber-900 font-bold border-b"><tr><th className="p-3">النوع</th><th className="p-3 text-center">الوزن</th><th className="p-3 text-center">سعر سليم</th><th className="p-3 text-center">سعر جايير</th></tr></thead>
-                  <tbody className="divide-y divide-amber-100">
-                    {papers.map((paper) => (
-                      <tr key={paper.id} className="hover:bg-amber-50/50">
-                        <td className="p-3 font-bold text-slate-700">{paper.type}</td>
-                        <td className="p-3 text-center text-slate-600">{paper.weight}</td>
-                        <td className="p-3 text-center"><span className="font-black text-blue-600 cursor-pointer hover:underline" onClick={() => { setEditingPaperId(paper.id); setEditingPrice(paper.priceSalim.toString()); setPaperEditOpen(true) }}>{paper.priceSalim.toFixed(2)} ج.م</span></td>
-                        <td className="p-3 text-center"><span className="font-black text-orange-600 cursor-pointer hover:underline" onClick={() => { setEditingPaperId(paper.id); setEditingPrice(paper.priceJayir.toString()); setPaperEditOpen(true) }}>{paper.priceJayir.toFixed(2)} ج.م</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
-
-      {/* Paper Edit Dialog */}
-      <Dialog open={paperEditOpen} onOpenChange={setPaperEditOpen}>
-        <DialogContent className="max-w-md rounded-2xl" dir="rtl">
-          <DialogHeader className="border-b pb-4"><DialogTitle className="text-xl font-black text-amber-800">تعديل سعر الورق</DialogTitle></DialogHeader>
-          <div className="space-y-4 pt-4">
-            <div><Label className="font-bold text-amber-900 mb-2">السعر الجديد (ج.م)</Label><Input type="number" value={editingPrice} onChange={(e) => setEditingPrice(e.target.value)} className="text-2xl h-14 border-2 border-amber-300 text-center font-black" autoFocus /></div>
-            <div className="flex gap-3">
-              <Button onClick={() => updatePaperPrice(editingPaperId || "", "priceSalim")} className="flex-1 bg-blue-600 hover:bg-blue-700 font-bold h-12">تحديث سليم</Button>
-              <Button onClick={() => updatePaperPrice(editingPaperId || "", "priceJayir")} className="flex-1 bg-orange-600 hover:bg-orange-700 font-bold h-12">تحديث جايير</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Calculator Dialog */}
       <Dialog open={printFormOpen} onOpenChange={setPrintFormOpen}>
