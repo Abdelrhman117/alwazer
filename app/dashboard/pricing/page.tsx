@@ -26,14 +26,16 @@ export default function PricingPage() {
   const [pPrice, setPPrice] = useState("")
   const [sheetPrice, setSheetPrice] = useState("0")
   const [sheetCount, setSheetCount] = useState("0")
-  const [printPricePer1000, setPrintPricePer1000] = useState("0")
+  const [printPricePer250, setPrintPricePer250] = useState("300")
   const [targetQty, setTargetQty] = useState("0")
   const [profitMargin, setProfitMargin] = useState("40")
   const [miscellaneous, setMiscellaneous] = useState("50")
-  const [zinkatFixed] = useState("400")
+  const [sallofanEnabled, setSallofanEnabled] = useState(false)
+  const [zinkatEnabled, setZinkatEnabled] = useState(false)
   const [basmaLength, setBasmaLength] = useState("0")
   const [basmaWidth, setBasmaWidth] = useState("0")
   const [basmaAclashie, setBasmaAclashie] = useState("0")
+  const [takserCost, setTakserCost] = useState("0")
 
   const DEFAULT_PAPER = [
     { id: "p1", category: "الطباعة", type: "طباعة سليم", weight: "60", priceSalim: 2.30, priceJayir: 1.65 },
@@ -86,23 +88,26 @@ export default function PricingPage() {
   }, [sheetCount])
 
   const calculate = () => {
-    const qty = parseFloat(targetQty) || 1
+    const qty    = parseFloat(targetQty) || 1
     const sCount = parseFloat(sheetCount) || 0
     const profit = (parseFloat(profitMargin) || 0) / 100
-    const paper = (parseFloat(sheetPrice) || 0) * sCount
-    const print = (parseFloat(printPricePer1000) || 0) * qty
-    const basma = (parseFloat(basmaLength) || 0) * (parseFloat(basmaWidth) || 0) * 4 + (parseFloat(basmaAclashie) || 0)
-    const zinkat = parseFloat(zinkatFixed) || 0
-    const totalRaw = paper + print + basma + zinkat + (parseFloat(miscellaneous) || 0)
+    const paper    = (parseFloat(sheetPrice) || 0) * sCount
+    const print    = sCount > 0 ? (sCount / 250) * (parseFloat(printPricePer250) || 300) : 0
+    const sallofan = sallofanEnabled ? sCount * 3 : 0
+    const zinkat   = zinkatEnabled ? 300 : 0
+    const basma    = (parseFloat(basmaLength) || 0) * (parseFloat(basmaWidth) || 0) * 4 + (parseFloat(basmaAclashie) || 0)
+    const takser   = parseFloat(takserCost) || 0
+    const totalRaw      = paper + print + sallofan + zinkat + basma + takser + (parseFloat(miscellaneous) || 0)
     const totalWithWaste = totalRaw * 1.03
-    const sellingTotal = totalWithWaste * (1 + profit)
-    const per1000 = (sellingTotal / qty) * 1000
+    const sellingTotal   = totalWithWaste * (1 + profit)
+    const per1000        = (sellingTotal / qty) * 1000
     return {
-      myTotalCost: totalWithWaste.toFixed(2),
-      myUnitCost: (totalWithWaste / qty).toFixed(2),
+      myTotalCost:      totalWithWaste.toFixed(2),
+      myUnitCost:       (totalWithWaste / qty).toFixed(2),
       customerPrice1000: per1000.toFixed(2),
-      customerTotal: sellingTotal.toFixed(2),
-      profitAmount: (sellingTotal - totalWithWaste).toFixed(2),
+      customerTotal:    sellingTotal.toFixed(2),
+      profitAmount:     (sellingTotal - totalWithWaste).toFixed(2),
+      breakdown: { paper, print, sallofan, zinkat, basma, takser },
     }
   }
 
@@ -217,21 +222,64 @@ export default function PricingPage() {
           <DialogHeader className="border-b pb-4"><DialogTitle className="text-2xl font-black text-blue-800">حاسبة التكاليف</DialogTitle></DialogHeader>
           <div className="space-y-5 pt-4">
             <div><Label className="font-bold">اسم المنتج</Label><Input value={pService} onChange={(e) => setPService(e.target.value)} className="h-12 text-lg mt-1" /></div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-3">
+              {/* الورق والطباعة */}
               <div className="bg-slate-50 p-4 rounded-2xl border space-y-3">
                 <h3 className="font-black text-blue-900 text-sm border-b pb-2">الورق والطباعة</h3>
                 <div className="grid grid-cols-2 gap-2">
-                  <div><Label className="text-xs">سعر الفرخ</Label><Input type="number" value={sheetPrice} onChange={(e) => setSheetPrice(e.target.value)} /></div>
-                  <div><Label className="text-xs font-bold text-blue-600">عدد الأفرخ</Label><Input type="number" value={sheetCount} onChange={(e) => setSheetCount(e.target.value)} className="border-blue-300" /></div>
-                  <div className="col-span-2"><Label className="text-xs">سعر طباعة الوحدة</Label><Input type="number" value={printPricePer1000} onChange={(e) => setPrintPricePer1000(e.target.value)} /></div>
+                  <div>
+                    <Label className="text-xs">سعر الفرخ (ج.م)</Label>
+                    <Input type="number" value={sheetPrice} onChange={(e) => setSheetPrice(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-bold text-blue-600">عدد الأفرخ</Label>
+                    <Input type="number" value={sheetCount} onChange={(e) => setSheetCount(e.target.value)} className="border-blue-300" />
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs">سعر الطباعة لكل 250 فرخ (ج.م)</Label>
+                    <Input type="number" value={printPricePer250} onChange={(e) => setPrintPricePer250(e.target.value)} />
+                  </div>
                 </div>
               </div>
+
+              {/* خدمات ما بعد الطباعة */}
               <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 space-y-3">
-                <h3 className="font-black text-orange-900 text-sm border-b pb-2">البصمة والتشطيب</h3>
+                <h3 className="font-black text-orange-900 text-sm border-b pb-2">خدمات ما بعد الطباعة</h3>
+
+                {/* ثوابت */}
                 <div className="grid grid-cols-2 gap-2">
-                  <div><Label className="text-xs">طول بصمة</Label><Input type="number" value={basmaLength} onChange={(e) => setBasmaLength(e.target.value)} /></div>
-                  <div><Label className="text-xs">عرض بصمة</Label><Input type="number" value={basmaWidth} onChange={(e) => setBasmaWidth(e.target.value)} /></div>
-                  <div className="col-span-2"><Label className="text-xs">أكلاشيه ثابت</Label><Input type="number" value={basmaAclashie} onChange={(e) => setBasmaAclashie(e.target.value)} /></div>
+                  <button type="button"
+                    onClick={() => setSallofanEnabled(!sallofanEnabled)}
+                    className={`flex items-center justify-between px-3 py-2 rounded-xl border-2 text-sm font-bold transition-all ${sallofanEnabled ? "bg-orange-200 border-orange-400 text-orange-900" : "bg-white border-gray-200 text-gray-400"}`}>
+                    <span>سلوفان</span>
+                    <span className="text-xs">{sallofanEnabled ? `${(parseFloat(sheetCount)||0)*3} ج.م` : "3 ج.م/فرخ"}</span>
+                  </button>
+                  <button type="button"
+                    onClick={() => setZinkatEnabled(!zinkatEnabled)}
+                    className={`flex items-center justify-between px-3 py-2 rounded-xl border-2 text-sm font-bold transition-all ${zinkatEnabled ? "bg-orange-200 border-orange-400 text-orange-900" : "bg-white border-gray-200 text-gray-400"}`}>
+                    <span>زنكات</span>
+                    <span className="text-xs">300 ج.م</span>
+                  </button>
+                </div>
+
+                {/* متغيرات */}
+                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-orange-200">
+                  <div>
+                    <Label className="text-xs">طول البصمة</Label>
+                    <Input type="number" value={basmaLength} onChange={(e) => setBasmaLength(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">عرض البصمة</Label>
+                    <Input type="number" value={basmaWidth} onChange={(e) => setBasmaWidth(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">أكلاشيه</Label>
+                    <Input type="number" value={basmaAclashie} onChange={(e) => setBasmaAclashie(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">تكسير (ج.م)</Label>
+                    <Input type="number" value={takserCost} onChange={(e) => setTakserCost(e.target.value)} />
+                  </div>
                 </div>
               </div>
             </div>
@@ -241,7 +289,26 @@ export default function PricingPage() {
               <div><Label className="text-slate-400 text-xs font-bold">الربح %</Label><Input className="bg-white/10 text-green-400 font-black h-11" type="number" value={profitMargin} onChange={(e) => setProfitMargin(e.target.value)} /></div>
             </div>
             <div className="p-5 bg-green-50 border-2 border-green-200 rounded-2xl space-y-3">
-              <div className="flex justify-between items-center"><span className="text-green-800 font-black text-xl">سعر الألف للزبون:</span><span className="font-black text-3xl text-green-600">{res.customerPrice1000} ج.م</span></div>
+              <div className="flex justify-between items-center">
+                <span className="text-green-800 font-black text-xl">سعر الألف للزبون:</span>
+                <span className="font-black text-3xl text-green-600">{res.customerPrice1000} ج.م</span>
+              </div>
+              {/* تفصيل التكلفة */}
+              <div className="grid grid-cols-3 gap-2 text-xs border-t border-green-200 pt-3">
+                {[
+                  { label: "ورق", val: res.breakdown.paper },
+                  { label: "طباعة", val: res.breakdown.print },
+                  { label: "سلوفان", val: res.breakdown.sallofan },
+                  { label: "زنكات", val: res.breakdown.zinkat },
+                  { label: "بصمة", val: res.breakdown.basma },
+                  { label: "تكسير", val: res.breakdown.takser },
+                ].filter(i => i.val > 0).map(i => (
+                  <div key={i.label} className="bg-white rounded-lg p-2 text-center border border-green-100">
+                    <div className="text-green-600 font-bold">{i.label}</div>
+                    <div className="font-black text-green-900">{i.val.toFixed(0)} ج.م</div>
+                  </div>
+                ))}
+              </div>
               <div className="grid grid-cols-2 gap-3 text-xs text-green-700 border-t border-green-200 pt-3 font-bold">
                 <span>تكلفتي الإجمالية: {res.myTotalCost} ج.م</span>
                 <span>تكلفة القطعة: {res.myUnitCost} ج.م</span>
