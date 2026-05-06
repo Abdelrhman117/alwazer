@@ -33,6 +33,7 @@ export default function SettingsPage() {
 
   async function handleSaveCompany(e: React.FormEvent) {
     e.preventDefault()
+    if (!companyName.trim()) return toast.error("يرجى إدخال اسم الشركة")
     setSaving(true)
     try {
       await saveSettings({

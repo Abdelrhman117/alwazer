@@ -34,6 +34,7 @@ export interface Invoice {
   status?: InvoiceStatus
   createdAt: string
   notes?: string
+  createdBy?: string
 }
 
 export type ExpenseCategory = "rent" | "salaries" | "materials" | "ads" | "other"
@@ -45,6 +46,7 @@ export interface Expense {
   amount: number
   date: string
   createdAt: string
+  createdBy?: string
 }
 
 export interface PrintingPrice {
@@ -83,6 +85,7 @@ export interface SupplierTransaction {
   method?: string
   notes?: string
   invoiceId?: string
+  createdBy?: string
 }
 
 export interface ClientTransaction {
@@ -95,6 +98,7 @@ export interface ClientTransaction {
   method?: string
   notes?: string
   invoiceId?: string
+  createdBy?: string
 }
 
 export interface AppSettings {

@@ -8,6 +8,14 @@ import { EXPENSE_CATEGORIES } from "@/lib/types"
 
 const MONTHS_AR = ["يناير","فبراير","مارس","إبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"]
 
+// DD/MM/YYYY → Date (local time, no timezone shift)
+function parseDMY(s: string): Date {
+  if (!s) return new Date(0)
+  const p = s.split("/")
+  if (p.length === 3) return new Date(+p[2], +p[1] - 1, +p[0])
+  return new Date(s)
+}
+
 export default function ReportsPage() {
   const { invoices } = useInvoices()
   const { expenses } = useExpenses()
@@ -22,14 +30,14 @@ export default function ReportsPage() {
   // available years from data
   const availableYears = useMemo(() => {
     const years = new Set<number>()
-    invoices.forEach((inv) => { const y = new Date(inv.createdAt).getFullYear(); if (!isNaN(y)) years.add(y) })
+    invoices.forEach((inv) => { const y = parseDMY(inv.date).getFullYear(); if (!isNaN(y)) years.add(y) })
     expenses.forEach((exp) => { const y = new Date(exp.date).getFullYear(); if (!isNaN(y)) years.add(y) })
     years.add(currentYear)
     return Array.from(years).sort((a, b) => b - a)
   }, [invoices, expenses, currentYear])
 
   const stats = useMemo(() => {
-    const yearInvoices = invoices.filter((inv) => new Date(inv.createdAt).getFullYear() === selectedYear)
+    const yearInvoices = invoices.filter((inv) => parseDMY(inv.date).getFullYear() === selectedYear)
     const yearExpenses = expenses.filter((exp) => new Date(exp.date).getFullYear() === selectedYear)
 
     const totalRevenue = yearInvoices.reduce((s, inv) => s + inv.totalPrice, 0)
@@ -56,7 +64,7 @@ export default function ReportsPage() {
   const monthlyData = useMemo(() => {
     return MONTHS_AR.map((name, monthIndex) => {
       const monthInvoices = invoices.filter((inv) => {
-        const d = new Date(inv.createdAt)
+        const d = parseDMY(inv.date)
         return d.getFullYear() === selectedYear && d.getMonth() === monthIndex
       })
       const monthExpenses = expenses.filter((exp) => {

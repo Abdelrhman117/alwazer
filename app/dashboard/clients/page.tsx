@@ -44,7 +44,10 @@ export default function ClientsPage() {
 
   // حسابات العميل المفتوح
   const clientInvoices = selectedClient
-    ? allInvoices.filter((inv) => inv.customerId === selectedClient.id)
+    ? allInvoices.filter((inv) =>
+        inv.customerId === selectedClient.id ||
+        (inv.customerId === "manual" && inv.clientName === selectedClient.company)
+      )
     : []
   const clientTransactions = selectedClient
     ? allTransactions.filter((tx) => tx.clientId === selectedClient.id)
@@ -58,7 +61,10 @@ export default function ClientsPage() {
 
   // حساب الأرصدة لكل العملاء
   const clientsWithBalances = clients.map((c) => {
-    const cInvoices = allInvoices.filter((inv) => inv.customerId === c.id)
+    const cInvoices = allInvoices.filter((inv) =>
+      inv.customerId === c.id ||
+      (inv.customerId === "manual" && inv.clientName === c.company)
+    )
     const cTrans = allTransactions.filter((t) => t.clientId === c.id && t.type === "تنزيل")
     const owed = cInvoices.reduce((s, inv) => s + (inv.totalPrice || 0), 0)
     const paid = cTrans.reduce((s, t) => s + t.amount, 0)

@@ -45,8 +45,8 @@ export default function ExpensesPage() {
   const [formDate, setFormDate] = useState(new Date().toISOString().split("T")[0])
 
   const filtered = useMemo(() => {
-    const fromTs = dateFrom ? new Date(dateFrom).getTime() : null
-    const toTs   = dateTo   ? new Date(dateTo + "T23:59:59").getTime() : null
+    const fromTs = dateFrom ? new Date(dateFrom + "T00:00:00").getTime() : null
+    const toTs   = dateTo   ? new Date(dateTo   + "T23:59:59").getTime() : null
     let result = [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     if (categoryFilter !== "all") result = result.filter((e) => e.category === categoryFilter)
     if (fromTs) result = result.filter((e) => new Date(e.date).getTime() >= fromTs)
@@ -104,6 +104,7 @@ export default function ExpensesPage() {
           amount,
           date: formDate,
           createdAt: new Date().toISOString(),
+          createdBy: user.email || user.uid,
         })
         toast.success("تم إضافة المصروف")
       }
@@ -206,7 +207,10 @@ export default function ExpensesPage() {
                       <Badge className={`text-xs ${CATEGORY_COLORS[exp.category]}`}>{EXPENSE_CATEGORIES[exp.category]}</Badge>
                       <span className="text-sm font-medium truncate">{exp.description}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">{exp.date}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {exp.date}
+                      {exp.createdBy && <> · <span className="opacity-60">بواسطة: {exp.createdBy.split("@")[0]}</span></>}
+                    </p>
                   </div>
                   <span className="font-bold text-base shrink-0">{exp.amount.toLocaleString()} ج</span>
                   <div className="flex items-center gap-1 shrink-0">

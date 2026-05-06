@@ -129,6 +129,7 @@ export default function SuppliersPage() {
         type: transactionType,
         method: paymentMethod,
         notes: paymentNotes || (transactionType === "تنزيل" ? "دفعة للمورد" : "إضافة مديونية"),
+        createdBy: user.email || user.uid,
       })
       toast.success(transactionType === "تنزيل" ? "تم تسجيل الدفعة" : "تم إضافة المديونية")
       setIsAddPaymentOpen(false)
@@ -248,7 +249,7 @@ export default function SuppliersPage() {
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label className="font-bold text-slate-700 text-sm">نوع المعاملة</Label>
-              <Select value={transactionType} onValueChange={(v) => setTransactionType(v as any)}>
+              <Select value={transactionType} onValueChange={(v) => setTransactionType(v as "تنزيل" | "إضافة_مديونية")}>
                 <SelectTrigger className="h-12 font-bold rounded-xl border-2"><SelectValue /></SelectTrigger>
                 <SelectContent dir="rtl">
                   <SelectItem value="تنزيل">💵 دفعة للمورد (تنزيل دين)</SelectItem>
@@ -318,6 +319,7 @@ export default function SuppliersPage() {
                     {tx.type === "تنزيل" ? "دفعة" : tx.type === "إضافة_مديونية" ? "مديونية" : "تكلفة فاتورة"}
                   </span>
                   {tx.notes && <span className="text-slate-500 truncate max-w-[200px]">{tx.notes}</span>}
+                  {tx.createdBy && <span className="text-slate-400 text-xs">👤 {tx.createdBy.split("@")[0]}</span>}
                 </div>
               </div>
             ))}

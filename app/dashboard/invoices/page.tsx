@@ -17,8 +17,7 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   FileText, Trash2, Plus, Printer, MessageCircle,
   CheckCircle2, Clock, PlayCircle, XCircle, X,
-  Building2, Search, Copy, CreditCard, AlertCircle,
-  ChevronDown, Filter
+  Building2, Search, Copy, AlertCircle, ChevronDown, Filter, CreditCard
 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -64,7 +63,7 @@ interface SuspendedDraft {
   savedAt: string
 }
 
-const SUSPENDED_KEY = "alwazer_suspended_drafts"
+const suspendedKey = (uid: string) => `alwazer_suspended_drafts_${uid}`
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function InvoicesPage() {
@@ -83,17 +82,19 @@ export default function InvoicesPage() {
   const [saving, setSaving]                       = useState(false)
   const [suspended, setSuspended]                 = useState<SuspendedDraft[]>([])
 
-  // ── Load suspended drafts from localStorage on mount ─────────────────────
+  // ── Load suspended drafts scoped to current user ─────────────────────────
   useEffect(() => {
+    if (!user) return
     try {
-      const saved = localStorage.getItem(SUSPENDED_KEY)
+      const saved = localStorage.getItem(suspendedKey(user.uid))
       if (saved) setSuspended(JSON.parse(saved))
     } catch { /* ignore */ }
-  }, [])
+  }, [user])
 
   function persistSuspended(drafts: SuspendedDraft[]) {
     setSuspended(drafts)
-    try { localStorage.setItem(SUSPENDED_KEY, JSON.stringify(drafts)) } catch { /* ignore */ }
+    if (!user) return
+    try { localStorage.setItem(suspendedKey(user.uid), JSON.stringify(drafts)) } catch { /* ignore */ }
   }
 
   // ── Add Item dialog ───────────────────────────────────────────────────────
@@ -178,6 +179,7 @@ export default function InvoicesPage() {
     try {
       const date   = new Date().toLocaleDateString("en-GB")
       const invNum = generateInvoiceNumber(savedInvoices)
+      const createdBy = user.email || user.uid
       const invoiceId = await addInvoice(user.uid, {
         invoiceNumber: invNum, customerId: selectedClientId || "manual",
         clientName, date,
@@ -187,11 +189,12 @@ export default function InvoicesPage() {
         discount: discountAmt || undefined,
         paidAmount: 0, status: "quote",
         createdAt: new Date().toISOString(), notes: notes || undefined,
+        createdBy,
       })
       if (selectedClientId) {
         await addClientTransaction(user.uid, {
           clientId: selectedClientId, clientName, amount: grandTotal, date,
-          type: "فاتورة", notes: `فاتورة - ${invNum}`, invoiceId,
+          type: "فاتورة", notes: `فاتورة - ${invNum}`, invoiceId, createdBy,
         })
       }
       setLineItems([]); setSelectedClientId(""); setManualClientName("")
@@ -239,7 +242,7 @@ export default function InvoicesPage() {
           clientId: detailInv.customerId, clientName: detailInv.clientName,
           amount, date: new Date().toLocaleDateString("en-GB"),
           type: "تنزيل", method: payMethod, notes: payNotes || `دفعة على ${detailInv.invoiceNumber}`,
-          invoiceId: detailInv.id,
+          invoiceId: detailInv.id, createdBy: user.email || user.uid,
         })
       }
       setDetailInv({ ...detailInv, paidAmount: newPaid })
@@ -319,155 +322,133 @@ export default function InvoicesPage() {
     const companyAddr  = settings.companyAddress || ""
     const MIN_ROWS = 10
 
-    return (
-      <div className="bg-white min-h-screen" dir="rtl">
-        <style>{`
-          @media print {
-            body { margin: 0; }
-            @page { margin: 8mm; size: A4 landscape; }
-            .no-print { display: none !important; }
-          }
-        `}</style>
-
-        {/* ── Back button (hidden on print) ── */}
-        <div className="no-print flex gap-3 p-3 bg-gray-100 border-b">
-          <button
-            onClick={() => setPrintInv(null)}
-            className="px-4 py-2 rounded-xl text-sm font-bold border-2 hover:bg-white transition-all"
-            style={{ borderColor: "#0F1F3D", color: "#0F1F3D" }}
-          >
-            ← رجوع
-          </button>
-          <button
-            onClick={() => window.print()}
-            className="px-6 py-2 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90"
-            style={{ background: "#0F1F3D" }}
-          >
-            🖨️ طباعة
-          </button>
+    // ── Reusable invoice copy component ──────────────────────────────────────
+    const InvoiceCopy = ({ copyLabel, showCosts }: { copyLabel: string; showCosts: boolean }) => (
+      <div className="invoice-copy" dir="rtl">
+        {/* Copy label */}
+        <div className="flex justify-between items-center px-5 pt-3 pb-1">
+          <span className="text-xs font-black px-3 py-1 rounded-full border-2" style={{ borderColor: "#0F1F3D", color: "#0F1F3D" }}>{copyLabel}</span>
         </div>
 
-        {/* ── Header ── */}
-        <div className="flex justify-between items-start p-5 border-b-4" style={{ borderColor: "#0F1F3D" }}>
-          {/* Company info */}
+        {/* Header */}
+        <div className="flex justify-between items-start px-5 pb-3 border-b-4" style={{ borderColor: "#0F1F3D" }}>
           <div>
             <h2 className="text-base font-black" style={{ color: "#0F1F3D" }}>{companyName}</h2>
             {companyAddr  && <p className="text-xs text-gray-500 mt-0.5">{companyAddr}</p>}
             {companyPhone && <p className="text-xs font-bold text-gray-600" dir="ltr">{companyPhone}</p>}
           </div>
-          {/* Logo */}
-          <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: "#0F1F3D" }}>
-            <span className="text-2xl font-black" style={{ color: "#F5C518" }}>و</span>
+          <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: "#0F1F3D" }}>
+            <span className="text-xl font-black" style={{ color: "#F5C518" }}>و</span>
           </div>
-          {/* Invoice meta */}
-          <div className="border rounded-lg p-2.5 text-xs space-y-1.5" style={{ borderColor: "#DCE3F5", minWidth: 200 }}>
-            <div className="flex justify-between gap-4">
-              <span className="font-bold text-gray-400">اسم العميل:</span>
-              <span className="font-black">{printInv.clientName}</span>
-            </div>
-            <div className="flex justify-between gap-4">
-              <span className="font-bold text-gray-400">رقم الفاتورة:</span>
-              <span className="font-black" dir="ltr">{printInv.invoiceNumber}</span>
-            </div>
-            <div className="flex justify-between gap-4">
-              <span className="font-bold text-gray-400">التاريخ:</span>
-              <span className="font-bold" dir="ltr">{printInv.date}</span>
-            </div>
-            {printInv.deliveryDate && (
-              <div className="flex justify-between gap-4">
-                <span className="font-bold text-gray-400">موعد التسليم:</span>
-                <span className="font-bold" dir="ltr">{printInv.deliveryDate}</span>
+          <div className="border rounded-lg p-2 text-xs space-y-1" style={{ borderColor: "#DCE3F5", minWidth: 190 }}>
+            {[
+              ["اسم العميل", printInv.clientName],
+              ["رقم الفاتورة", printInv.invoiceNumber],
+              ["التاريخ", printInv.date],
+              ...(printInv.deliveryDate ? [["موعد التسليم", printInv.deliveryDate]] : []),
+              ["الحالة", statusLabel],
+              ...(clientPhone && clientPhone !== "لا يوجد" ? [["الموبايل", clientPhone]] : []),
+              ...(showCosts && printInv.createdBy ? [["بواسطة", printInv.createdBy]] : []),
+            ].map(([label, val]) => (
+              <div key={label} className="flex justify-between gap-3">
+                <span className="font-bold text-gray-400">{label}:</span>
+                <span className="font-black" dir="ltr">{val}</span>
               </div>
-            )}
-            <div className="flex justify-between gap-4">
-              <span className="font-bold text-gray-400">الحالة:</span>
-              <span className="font-black" style={{ color: "#0F1F3D" }}>{statusLabel}</span>
-            </div>
-            {clientPhone && clientPhone !== "لا يوجد" && (
-              <div className="flex justify-between gap-4">
-                <span className="font-bold text-gray-400">رقم الموبايل:</span>
-                <span dir="ltr">{clientPhone}</span>
-              </div>
-            )}
+            ))}
           </div>
         </div>
 
-        {/* ── Table ── */}
-        <div className="p-4">
+        {/* Table */}
+        <div className="px-4 pt-2">
           <table className="w-full border-collapse text-xs">
             <thead>
               <tr style={{ background: "#0F1F3D", color: "white" }}>
-                {["الصنف","المواصفات ونوع الورق","الكمية","الوحدة","السعر","تجهيزات الطباعة","الإجمالي","تنزيل"].map(h => (
-                  <th key={h} className="border p-2 text-right" style={{ borderColor: "#243B6E" }}>{h}</th>
+                {(showCosts
+                  ? ["الصنف","المواصفات","الكمية","الوحدة","السعر","تجهيزات","الإجمالي","تنزيل"]
+                  : ["الصنف","المواصفات","الكمية","الوحدة","السعر","الإجمالي","تنزيل"]
+                ).map(h => (
+                  <th key={h} className="border p-1.5 text-right" style={{ borderColor: "#243B6E" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {items.map((it, i) => (
                 <tr key={i} style={{ background: i % 2 === 0 ? "white" : "#F4F6FB" }}>
-                  <td className="border p-2 font-bold" style={{ borderColor: "#DCE3F5" }}>{it.category || "طباعة"}</td>
-                  <td className="border p-2"            style={{ borderColor: "#DCE3F5" }}>{it.name}</td>
-                  <td className="border p-2 text-center" style={{ borderColor: "#DCE3F5" }}>{it.qty}</td>
-                  <td className="border p-2 text-center" style={{ borderColor: "#DCE3F5" }}>{it.unit || "كرتونة"}</td>
-                  <td className="border p-2 text-center font-mono" style={{ borderColor: "#DCE3F5" }}>{fmt(it.unitPrice)}</td>
-                  <td className="border p-2 text-center font-mono" style={{ borderColor: "#DCE3F5" }}>{it.cost > 0 ? fmt(it.cost) : ""}</td>
-                  <td className="border p-2 text-center font-black" style={{ borderColor: "#DCE3F5" }}>{fmt(it.total)}</td>
-                  <td className="border p-2" style={{ borderColor: "#DCE3F5" }}></td>
+                  <td className="border p-1.5 font-bold" style={{ borderColor: "#DCE3F5" }}>{it.category || "طباعة"}</td>
+                  <td className="border p-1.5" style={{ borderColor: "#DCE3F5" }}>{it.name}</td>
+                  <td className="border p-1.5 text-center" style={{ borderColor: "#DCE3F5" }}>{it.qty}</td>
+                  <td className="border p-1.5 text-center" style={{ borderColor: "#DCE3F5" }}>{it.unit || "كرتونة"}</td>
+                  <td className="border p-1.5 text-center font-mono" style={{ borderColor: "#DCE3F5" }}>{fmt(it.unitPrice)}</td>
+                  {showCosts && <td className="border p-1.5 text-center font-mono" style={{ borderColor: "#DCE3F5" }}>{it.cost > 0 ? fmt(it.cost) : ""}</td>}
+                  <td className="border p-1.5 text-center font-black" style={{ borderColor: "#DCE3F5" }}>{fmt(it.total)}</td>
+                  <td className="border p-1.5" style={{ borderColor: "#DCE3F5" }}></td>
                 </tr>
               ))}
               {Array.from({ length: Math.max(0, MIN_ROWS - items.length) }).map((_, i) => (
                 <tr key={`e-${i}`} style={{ background: (items.length + i) % 2 === 0 ? "white" : "#F4F6FB" }}>
-                  {Array(8).fill(null).map((_, j) => <td key={j} className="border p-2 h-7" style={{ borderColor: "#DCE3F5" }} />)}
+                  {Array(showCosts ? 8 : 7).fill(null).map((_, j) => <td key={j} className="border p-1.5 h-6" style={{ borderColor: "#DCE3F5" }} />)}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
 
-        {/* ── Footer ── */}
-        <div className="px-4 pb-3 flex justify-between items-end gap-6">
+        {/* Footer */}
+        <div className="px-4 pb-2 flex justify-between items-end gap-4">
           <div className="flex-1">
-            {printInv.notes && <p className="text-xs text-gray-500 italic border rounded p-2" style={{ borderColor: "#DCE3F5" }}>{printInv.notes}</p>}
+            {printInv.notes && <p className="text-xs text-gray-500 italic border rounded p-1.5" style={{ borderColor: "#DCE3F5" }}>{printInv.notes}</p>}
           </div>
-          <div className="text-xs space-y-1.5" style={{ minWidth: 260 }}>
-            {disc > 0 && (
-              <div className="flex justify-between gap-6">
-                <span className="font-bold">المجموع قبل الخصم:</span>
-                <span className="font-black">{fmt(subT)} ج.م</span>
-              </div>
-            )}
-            {disc > 0 && (
-              <div className="flex justify-between gap-6 text-red-600">
-                <span className="font-bold">الخصم:</span>
-                <span className="font-black">- {fmt(disc)} ج.م</span>
-              </div>
-            )}
-            <div className="flex justify-between gap-6">
-              <span className="font-bold">إجمالي الفاتورة:</span>
-              <span className="font-black text-sm">{fmt(total)} ج.م</span>
-            </div>
-            <div className="flex justify-between gap-6">
-              <span className="font-bold">إجمالي التنزيل:</span>
-              <span className="font-black text-green-700">{fmt(paid)} ج.م</span>
-            </div>
-            <div className="flex justify-between gap-6 pt-1.5 border-t-2" style={{ borderColor: "#0F1F3D" }}>
+          <div className="text-xs space-y-1" style={{ minWidth: 240 }}>
+            {disc > 0 && <>
+              <div className="flex justify-between gap-4"><span className="font-bold">المجموع قبل الخصم:</span><span className="font-black">{fmt(subT)} ج.م</span></div>
+              <div className="flex justify-between gap-4 text-red-600"><span className="font-bold">الخصم:</span><span className="font-black">- {fmt(disc)} ج.م</span></div>
+            </>}
+            <div className="flex justify-between gap-4"><span className="font-bold">إجمالي الفاتورة:</span><span className="font-black">{fmt(total)} ج.م</span></div>
+            <div className="flex justify-between gap-4"><span className="font-bold">إجمالي التنزيل:</span><span className="font-black text-green-700">{fmt(paid)} ج.م</span></div>
+            {showCosts && <div className="flex justify-between gap-4 text-orange-700"><span className="font-bold">إجمالي التكاليف:</span><span className="font-black">{fmt(printInv.totalCost || 0)} ج.م</span></div>}
+            <div className="flex justify-between gap-4 pt-1 border-t-2" style={{ borderColor: "#0F1F3D" }}>
               <span className="font-bold text-sm">الباقي:</span>
-              <span className="font-black text-base" style={{ color: remaining > 0 ? "#D97706" : "#16A34A" }}>
-                {fmt(remaining)} ج.م
-              </span>
+              <span className="font-black text-sm" style={{ color: remaining > 0 ? "#D97706" : "#16A34A" }}>{fmt(remaining)} ج.م</span>
             </div>
           </div>
         </div>
 
-        {/* ── Banners ── */}
-        <div className="px-4 pb-4 space-y-1.5">
-          <div className="py-2 text-center font-black text-sm text-white rounded" style={{ background: "#DC2626" }}>
-            تسليم الأوردر خلال 14 يوم عمل رسمي
-          </div>
-          <div className="py-2 text-center font-black text-sm rounded" style={{ background: "#F5C518", color: "#0F1F3D" }}>
-            يتم دفع 50% عند الاتفاق و50% عند الاستلام
-          </div>
+        {/* Banners */}
+        <div className="px-4 pb-3 space-y-1">
+          <div className="py-1.5 text-center font-black text-xs text-white rounded" style={{ background: "#DC2626" }}>تسليم الأوردر خلال 14 يوم عمل رسمي</div>
+          <div className="py-1.5 text-center font-black text-xs rounded" style={{ background: "#F5C518", color: "#0F1F3D" }}>يتم دفع 50% عند الاتفاق و50% عند الاستلام</div>
         </div>
+      </div>
+    )
+
+    return (
+      <div className="bg-white min-h-screen">
+        <style>{`
+          .invoice-copy { page-break-inside: avoid; }
+          .cut-line { border-top: 2px dashed #999; margin: 4px 20px; position: relative; }
+          .cut-line::before { content: "✂"; position: absolute; top: -10px; right: -5px; color: #999; font-size: 14px; }
+          @media print {
+            body { margin: 0; }
+            @page { margin: 6mm; size: A4 portrait; }
+            .no-print { display: none !important; }
+            .invoice-copy { break-inside: avoid; }
+          }
+        `}</style>
+
+        {/* Back / Print buttons */}
+        <div className="no-print flex gap-3 p-3 bg-gray-100 border-b">
+          <button onClick={() => setPrintInv(null)} className="px-4 py-2 rounded-xl text-sm font-bold border-2 hover:bg-white transition-all" style={{ borderColor: "#0F1F3D", color: "#0F1F3D" }}>← رجوع</button>
+          <button onClick={() => window.print()} className="px-6 py-2 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90" style={{ background: "#0F1F3D" }}>🖨️ طباعة نسختين</button>
+        </div>
+
+        {/* نسخة العميل */}
+        <InvoiceCopy copyLabel="نسخة العميل" showCosts={false} />
+
+        {/* خط القطع */}
+        <div className="cut-line" />
+
+        {/* نسخة الإدارة */}
+        <InvoiceCopy copyLabel="نسخة الإدارة" showCosts={true} />
       </div>
     )
   }
@@ -682,7 +663,12 @@ export default function InvoicesPage() {
                 const paidAmt = inv.paidAmount || 0
                 const remaining = inv.totalPrice - paidAmt
                 const paidPct = inv.totalPrice > 0 ? Math.min(100, (paidAmt / inv.totalPrice) * 100) : 0
-                const isLate = inv.deliveryDate && new Date(inv.deliveryDate.split("/").reverse().join("-")) < new Date() && inv.status !== "closed" && inv.status !== "delivered"
+                const isLate = inv.deliveryDate && (() => {
+                  const p = inv.deliveryDate!.split("/")
+                  const d = p.length === 3 ? new Date(+p[2], +p[1] - 1, +p[0]) : new Date(inv.deliveryDate!)
+                  const today = new Date(); today.setHours(0,0,0,0)
+                  return d < today
+                })() && inv.status !== "closed" && inv.status !== "delivered"
                 return (
                   <div key={inv.id}
                     className="rounded-xl border p-4 cursor-pointer hover:shadow-md transition-all"
@@ -706,6 +692,7 @@ export default function InvoicesPage() {
                           <p className="text-xs mt-0.5" style={{ color: "var(--wazer-navy-muted)" }}>
                             {inv.date}
                             {inv.deliveryDate && <> · تسليم: {inv.deliveryDate}</>}
+                            {inv.createdBy && <> · <span className="opacity-60">بواسطة: {inv.createdBy.split("@")[0]}</span></>}
                           </p>
                         </div>
                       </div>

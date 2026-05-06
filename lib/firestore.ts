@@ -97,7 +97,8 @@ export async function addInvoice(uid: string, invoice: Omit<Invoice, "id">): Pro
 }
 
 export async function updateInvoice(uid: string, id: string, data: Partial<import("./types").Invoice>): Promise<void> {
-  await updateDoc(userDoc(uid, "invoices", id), data as Record<string, unknown>)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await updateDoc(userDoc(uid, "invoices", id), data as any)
 }
 
 export async function deleteInvoice(uid: string, id: string): Promise<void> {
