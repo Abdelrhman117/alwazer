@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { useClients, useInvoices } from "@/lib/store"
+import { useClients, useInvoices, generateInvoiceNumber } from "@/lib/store"
 import {
   addInvoice, deleteInvoice, updateInvoice,
   addClientTransaction,
@@ -41,10 +41,30 @@ const PAY_METHODS = ["نقدي (كاش)","انستاباي","فودافون كا
 const STATUS_LIST: InvoiceStatus[] = ["quote","confirmed","inprogress","delivered","closed"]
 
 interface LineItem {
-  id: string; category: string; categoryLabel: string
-  description: string; qty: number; unit: string
-  price: number; printingCost: number; total: number
+  id: string
+  category: string
+  categoryLabel: string
+  description: string
+  qty: number
+  unit: string
+  price: number
+  printingCost: number
+  total: number
 }
+
+interface SuspendedDraft {
+  id: string
+  clientId: string
+  clientName: string
+  lineItems: LineItem[]
+  discount: number
+  grandTotal: number
+  notes: string
+  deliveryDate: string
+  savedAt: string
+}
+
+const SUSPENDED_KEY = "alwazer_suspended_drafts"
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function InvoicesPage() {
@@ -60,7 +80,20 @@ export default function InvoicesPage() {
   const [notes, setNotes]                         = useState("")
   const [deliveryDate, setDeliveryDate]           = useState("")
   const [saving, setSaving]                       = useState(false)
-  const [suspended, setSuspended]                 = useState<any[]>([])
+  const [suspended, setSuspended]                 = useState<SuspendedDraft[]>([])
+
+  // ── Load suspended drafts from localStorage on mount ─────────────────────
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(SUSPENDED_KEY)
+      if (saved) setSuspended(JSON.parse(saved))
+    } catch { /* ignore */ }
+  }, [])
+
+  function persistSuspended(drafts: SuspendedDraft[]) {
+    setSuspended(drafts)
+    try { localStorage.setItem(SUSPENDED_KEY, JSON.stringify(drafts)) } catch { /* ignore */ }
+  }
 
   // ── Add Item dialog ───────────────────────────────────────────────────────
   const [addOpen, setAddOpen]           = useState(false)
@@ -73,14 +106,14 @@ export default function InvoicesPage() {
   const [iPrintCost, setIPrintCost]     = useState("")
 
   // ── Invoice detail dialog ─────────────────────────────────────────────────
-  const [detailInv, setDetailInv]       = useState<any>(null)
+  const [detailInv, setDetailInv]       = useState<Invoice | null>(null)
   const [payAmount, setPayAmount]       = useState("")
   const [payMethod, setPayMethod]       = useState("نقدي (كاش)")
   const [payNotes, setPayNotes]         = useState("")
   const [addingPay, setAddingPay]       = useState(false)
 
   // ── Print ─────────────────────────────────────────────────────────────────
-  const [printInv, setPrintInv]         = useState<any>(null)
+  const [printInv, setPrintInv]         = useState<Invoice | null>(null)
 
   // ── Filters ───────────────────────────────────────────────────────────────
   const [search, setSearch]             = useState("")
@@ -102,7 +135,7 @@ export default function InvoicesPage() {
       const matchSearch = !search ||
         inv.clientName.toLowerCase().includes(search.toLowerCase()) ||
         inv.invoiceNumber?.toLowerCase().includes(search.toLowerCase())
-      const matchStatus = filterStatus === "all" || (inv as any).status === filterStatus
+      const matchStatus = filterStatus === "all" || inv.status === filterStatus
       return matchSearch && matchStatus
     })
   }, [savedInvoices, search, filterStatus])
@@ -143,7 +176,7 @@ export default function InvoicesPage() {
     setSaving(true)
     try {
       const date   = new Date().toLocaleDateString("en-GB")
-      const invNum = `INV-${new Date().getFullYear()}-${String(savedInvoices.length + 1).padStart(4, "0")}`
+      const invNum = generateInvoiceNumber(savedInvoices)
       const invoiceId = await addInvoice(user.uid, {
         invoiceNumber: invNum, customerId: selectedClientId || "manual",
         clientName, date,
@@ -183,7 +216,7 @@ export default function InvoicesPage() {
   }
 
   // ── Update status ─────────────────────────────────────────────────────────
-  async function updateStatus(inv: any, status: InvoiceStatus) {
+  async function updateStatus(inv: Invoice, status: InvoiceStatus) {
     if (!user) return
     try {
       await updateInvoice(user.uid, inv.id, { status })
@@ -215,10 +248,10 @@ export default function InvoicesPage() {
   }
 
   // ── Copy Invoice ──────────────────────────────────────────────────────────
-  function copyInvoice(inv: any) {
+  function copyInvoice(inv: Invoice) {
     setSelectedClientId(inv.customerId !== "manual" ? inv.customerId : "")
     setManualClientName(inv.customerId === "manual" ? inv.clientName : "")
-    setLineItems(inv.items.map((it: any) => ({
+    setLineItems(inv.items.map((it) => ({
       id: crypto.randomUUID(), category: "printing", categoryLabel: it.category || "طباعة",
       description: it.name, qty: it.qty, unit: it.unit || "كرتونة",
       price: it.unitPrice, printingCost: it.cost || 0, total: it.total,
@@ -228,12 +261,12 @@ export default function InvoicesPage() {
   }
 
   // ── WhatsApp ──────────────────────────────────────────────────────────────
-  function sendWhatsApp(inv: any) {
+  function sendWhatsApp(inv: Invoice) {
     const client = clients.find(c => c.id === inv.customerId)
     if (!client?.phone || client.phone === "لا يوجد") return toast.error("العميل ليس لديه رقم هاتف")
     let phone = client.phone.trim(); if (phone.startsWith("0")) phone = "2" + phone
     let text = `🧾 *عرض سعر – مطبعة الوزير*\nالتاريخ: ${inv.date}\nالشركة: ${inv.clientName}\n────────────────────\n`
-    inv.items.forEach((it: any, i: number) => {
+    inv.items.forEach((it, i) => {
       text += `${i + 1}. ${it.name}\n   ${it.qty} ${it.unit || ""} × ${fmt(it.unitPrice)} = *${fmt(it.total)} ج.م*\n`
     })
     text += `────────────────────\n💰 *الإجمالي: ${fmt(inv.totalPrice)} ج.م*`
@@ -245,21 +278,22 @@ export default function InvoicesPage() {
   // ── Suspend ───────────────────────────────────────────────────────────────
   function suspendInvoice() {
     if (lineItems.length === 0) return toast.error("الفاتورة فارغة")
-    setSuspended([...suspended, {
+    const newDraft: SuspendedDraft = {
       id: crypto.randomUUID(), clientId: selectedClientId, clientName, lineItems,
       discount: discountAmt, grandTotal, notes, deliveryDate,
       savedAt: new Date().toLocaleString("en-GB"),
-    }])
+    }
+    persistSuspended([...suspended, newDraft])
     setLineItems([]); setSelectedClientId(""); setManualClientName("")
     setNotes(""); setDiscount("0"); setDeliveryDate("")
     toast.success("تم تعليق الفاتورة")
   }
 
-  function resumeDraft(d: any) {
+  function resumeDraft(d: SuspendedDraft) {
     setLineItems(d.lineItems); setSelectedClientId(d.clientId)
     setManualClientName(d.clientName); setNotes(d.notes)
     setDiscount(String(d.discount)); setDeliveryDate(d.deliveryDate || "")
-    setSuspended(suspended.filter(x => x.id !== d.id))
+    persistSuspended(suspended.filter(x => x.id !== d.id))
     toast.success("تم استرجاع المسودة")
   }
 
@@ -300,7 +334,7 @@ export default function InvoicesPage() {
               </tr>
             </thead>
             <tbody>
-              {items.map((it: any, i: number) => (
+              {items.map((it, i) => (
                 <tr key={i} style={{ background: i % 2 === 0 ? "white" : "#F4F6FB" }}>
                   <td className="border p-2 font-bold" style={{ borderColor: "#DCE3F5" }}>{it.category || "طباعة"}</td>
                   <td className="border p-2" style={{ borderColor: "#DCE3F5" }}>{it.name}</td>
@@ -507,7 +541,7 @@ export default function InvoicesPage() {
                 <div className="flex gap-2">
                   <button onClick={() => resumeDraft(d)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white"
                     style={{ background: "#16A34A" }}><PlayCircle className="w-3.5 h-3.5" /> استرجاع</button>
-                  <button onClick={() => setSuspended(suspended.filter(x => x.id !== d.id))}
+                  <button onClick={() => persistSuspended(suspended.filter(x => x.id !== d.id))}
                     className="p-1.5 rounded-xl text-red-400 hover:bg-red-50"><XCircle className="w-4 h-4" /></button>
                 </div>
               </div>
@@ -547,7 +581,7 @@ export default function InvoicesPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {filteredInvoices.map((inv: any) => {
+              {filteredInvoices.map((inv) => {
                 const paidAmt = inv.paidAmount || 0
                 const remaining = inv.totalPrice - paidAmt
                 const paidPct = inv.totalPrice > 0 ? Math.min(100, (paidAmt / inv.totalPrice) * 100) : 0
@@ -755,7 +789,7 @@ export default function InvoicesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {detailInv.items?.map((it: any, i: number) => (
+                    {detailInv.items?.map((it, i) => (
                       <tr key={i} style={{ background: i % 2 === 0 ? "white" : "#F4F6FB" }}>
                         <td className="p-2.5 font-bold" style={{ color: "var(--wazer-navy)" }}>{it.name}</td>
                         <td className="p-2.5 text-center" style={{ color: "var(--wazer-navy-muted)" }}>{it.qty} {it.unit || ""}</td>

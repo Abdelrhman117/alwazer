@@ -61,6 +61,20 @@ export async function updateClient(uid: string, id: string, data: Partial<Client
 }
 
 export async function deleteClient(uid: string, id: string): Promise<void> {
+  // cascade: delete client's invoices, supplier transactions linked to those invoices, and client transactions
+  const [invoiceSnap, cTxSnap] = await Promise.all([
+    getDocs(query(userCol(uid, "invoices"))),
+    getDocs(query(userCol(uid, "clientTransactions"))),
+  ])
+  const clientInvoiceIds = invoiceSnap.docs
+    .filter((d) => d.data().customerId === id)
+    .map((d) => d.id)
+  const sTxSnap = await getDocs(query(userCol(uid, "supplierTransactions")))
+  await Promise.all([
+    ...invoiceSnap.docs.filter((d) => d.data().customerId === id).map((d) => deleteDoc(d.ref)),
+    ...cTxSnap.docs.filter((d) => d.data().clientId === id).map((d) => deleteDoc(d.ref)),
+    ...sTxSnap.docs.filter((d) => clientInvoiceIds.includes(d.data().invoiceId)).map((d) => deleteDoc(d.ref)),
+  ])
   await deleteDoc(userDoc(uid, "clients", id))
 }
 
@@ -135,6 +149,11 @@ export async function addSupplier(uid: string, supplier: Omit<Supplier, "id">): 
 }
 
 export async function deleteSupplier(uid: string, id: string): Promise<void> {
+  // cascade: delete all transactions linked to this supplier
+  const txSnap = await getDocs(query(userCol(uid, "supplierTransactions")))
+  await Promise.all(
+    txSnap.docs.filter((d) => d.data().supplierId === id).map((d) => deleteDoc(d.ref))
+  )
   await deleteDoc(userDoc(uid, "suppliers", id))
 }
 
