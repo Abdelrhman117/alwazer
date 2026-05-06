@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import {
   LayoutDashboard, Users, FileText, LogOut,
   Wallet, Menu, X, Box, ChevronRight, ChevronLeft,
-  BarChart3, Settings, TrendingUp
+  BarChart3, Settings, TrendingUp, Calculator
 } from "lucide-react"
 import { useState } from "react"
 import { signOut } from "firebase/auth"
@@ -21,6 +21,7 @@ const navItems = [
   { href: "/dashboard/finance",            label: "الموردين والديون",   icon: Wallet          },
   { href: "/dashboard/expenses",           label: "المصروفات",          icon: TrendingUp      },
   { href: "/dashboard/reports",            label: "التقارير",           icon: BarChart3       },
+  { href: "/dashboard/pricing",            label: "أسعار التشغيل",      icon: Calculator      },
   { href: "/dashboard/printing-materials", label: "خامات الطباعة",      icon: Box             },
   { href: "/dashboard/settings",           label: "الإعدادات",          icon: Settings        },
 ]

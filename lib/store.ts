@@ -172,8 +172,12 @@ export function useSettings() {
 
 export function generateInvoiceNumber(invoices: Invoice[]): string {
   const year = new Date().getFullYear()
-  const count = invoices.filter((inv) =>
-    inv.invoiceNumber?.startsWith(`INV-${year}`)
-  ).length
-  return `INV-${year}-${String(count + 1).padStart(4, "0")}`
+  const prefix = `INV-${year}-`
+  const maxNum = invoices
+    .filter((inv) => inv.invoiceNumber?.startsWith(prefix))
+    .reduce((max, inv) => {
+      const num = parseInt(inv.invoiceNumber.slice(prefix.length), 10)
+      return isNaN(num) ? max : Math.max(max, num)
+    }, 0)
+  return `${prefix}${String(maxNum + 1).padStart(4, "0")}`
 }

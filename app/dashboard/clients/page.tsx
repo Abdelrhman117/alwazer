@@ -17,6 +17,7 @@ import { useClients, useInvoices, useClientTransactions } from "@/lib/store"
 import {
   addClient, updateClient, deleteClient,
   addClientTransaction, deleteClientTransaction, deleteInvoice,
+  getSupplierTransactions, deleteSupplierTransaction, getClientTransactions,
 } from "@/lib/firestore"
 import type { Client, ClientTransaction, Invoice } from "@/lib/types"
 
@@ -143,6 +144,14 @@ export default function ClientsPage() {
     if (!user) return
     try {
       await deleteInvoice(user.uid, invoiceId)
+      const [sTxs, cTxs] = await Promise.all([
+        getSupplierTransactions(user.uid),
+        getClientTransactions(user.uid),
+      ])
+      await Promise.all([
+        ...sTxs.filter((t) => t.invoiceId === invoiceId).map((t) => deleteSupplierTransaction(user.uid, t.id)),
+        ...cTxs.filter((t) => t.invoiceId === invoiceId).map((t) => deleteClientTransaction(user.uid, t.id)),
+      ])
       toast.success("تم حذف الفاتورة")
     } catch {
       toast.error("فشل في حذف الفاتورة")
