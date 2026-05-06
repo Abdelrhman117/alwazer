@@ -45,10 +45,12 @@ export default function ExpensesPage() {
   const [formDate, setFormDate] = useState(new Date().toISOString().split("T")[0])
 
   const filtered = useMemo(() => {
+    const fromTs = dateFrom ? new Date(dateFrom).getTime() : null
+    const toTs   = dateTo   ? new Date(dateTo + "T23:59:59").getTime() : null
     let result = [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     if (categoryFilter !== "all") result = result.filter((e) => e.category === categoryFilter)
-    if (dateFrom) result = result.filter((e) => e.date >= dateFrom)
-    if (dateTo) result = result.filter((e) => e.date <= dateTo)
+    if (fromTs) result = result.filter((e) => new Date(e.date).getTime() >= fromTs)
+    if (toTs)   result = result.filter((e) => new Date(e.date).getTime() <= toTs)
     return result
   }, [expenses, categoryFilter, dateFrom, dateTo])
 

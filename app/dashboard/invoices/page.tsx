@@ -252,11 +252,17 @@ export default function InvoicesPage() {
   function copyInvoice(inv: Invoice) {
     setSelectedClientId(inv.customerId !== "manual" ? inv.customerId : "")
     setManualClientName(inv.customerId === "manual" ? inv.clientName : "")
-    setLineItems(inv.items.map((it) => ({
-      id: crypto.randomUUID(), category: "printing", categoryLabel: it.category || "طباعة",
-      description: it.name, qty: it.qty, unit: it.unit || "كرتونة",
-      price: it.unitPrice, printingCost: it.cost || 0, total: it.total,
-    })))
+    setLineItems(inv.items.map((it) => {
+      // it.category stores the label (e.g. "طباعة أوفست") — find the matching id
+      const matched = SERVICE_CATEGORIES.find((c) => c.label === it.category)
+      const catId    = matched?.id    || "other"
+      const catLabel = matched?.label || it.category || "خدمة أخرى"
+      return {
+        id: crypto.randomUUID(), category: catId, categoryLabel: catLabel,
+        description: it.name, qty: it.qty, unit: it.unit || "كرتونة",
+        price: it.unitPrice, printingCost: it.cost || 0, total: it.total,
+      }
+    }))
     setNotes(inv.notes || ""); setDiscount(String(inv.discount || 0))
     toast.success("تم نسخ الفاتورة — راجع البيانات وعدّل قبل الحفظ")
   }
