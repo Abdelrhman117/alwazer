@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calculator, Trash2, Box, TrendingUp, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/lib/auth-context"
@@ -24,6 +25,8 @@ export default function PricingPage() {
 
   const [pService, setPService] = useState("")
   const [pPrice, setPPrice] = useState("")
+  const [selectedPaperId, setSelectedPaperId] = useState("")
+  const [paperPriceType, setPaperPriceType] = useState<"priceSalim" | "priceJayir">("priceSalim")
   const [sheetPrice, setSheetPrice] = useState("0")
   const [sheetCount, setSheetCount] = useState("0")
   const [printPricePer250, setPrintPricePer250] = useState("300")
@@ -86,6 +89,13 @@ export default function PricingPage() {
     const count = parseFloat(sheetCount) || 0
     if (count > 0) setTargetQty((count * 4).toString())
   }, [sheetCount])
+
+  // auto sheet price from selected paper
+  useEffect(() => {
+    if (!selectedPaperId) return
+    const paper = paperList.find((p) => p.id === selectedPaperId)
+    if (paper) setSheetPrice(String(paper[paperPriceType] ?? 0))
+  }, [selectedPaperId, paperPriceType, paperList])
 
   const calculate = () => {
     const qty    = parseFloat(targetQty) || 1
@@ -226,14 +236,51 @@ export default function PricingPage() {
               {/* الورق والطباعة */}
               <div className="bg-slate-50 p-4 rounded-2xl border space-y-3">
                 <h3 className="font-black text-blue-900 text-sm border-b pb-2">الورق والطباعة</h3>
+
+                {/* اختيار الورق من الخامات */}
+                <div>
+                  <Label className="text-xs font-bold text-blue-700 mb-1 block">نوع الورق (من قائمة الخامات)</Label>
+                  <Select value={selectedPaperId} onValueChange={setSelectedPaperId} dir="rtl">
+                    <SelectTrigger className="h-10 text-sm font-bold border-2 border-blue-200">
+                      <SelectValue placeholder="اختر نوع الورق..." />
+                    </SelectTrigger>
+                    <SelectContent dir="rtl">
+                      {paperList.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.type} {p.weight}جم — سليم: {p.priceSalim} | جايير: {p.priceJayir}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* سليم / جايير */}
+                {selectedPaperId && (
+                  <div className="flex gap-2">
+                    {(["priceSalim", "priceJayir"] as const).map((type) => (
+                      <button key={type} type="button"
+                        onClick={() => setPaperPriceType(type)}
+                        className={`flex-1 py-2 rounded-xl text-sm font-black border-2 transition-all ${paperPriceType === type ? "bg-blue-700 text-white border-blue-700" : "bg-white text-blue-700 border-blue-200"}`}>
+                        {type === "priceSalim" ? "سليم" : "جايير"}
+                        <span className="mr-1 text-xs opacity-70">
+                          ({paperList.find(p => p.id === selectedPaperId)?.[type]} ج.م)
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <Label className="text-xs">سعر الفرخ (ج.م)</Label>
-                    <Input type="number" value={sheetPrice} onChange={(e) => setSheetPrice(e.target.value)} />
+                    <Label className="text-xs text-slate-500">سعر الفرخ (ج.م)</Label>
+                    <Input type="number" value={sheetPrice}
+                      onChange={(e) => { setSelectedPaperId(""); setSheetPrice(e.target.value) }}
+                      className="text-center font-black border-slate-300"
+                      placeholder="أو أدخل يدوياً" />
                   </div>
                   <div>
                     <Label className="text-xs font-bold text-blue-600">عدد الأفرخ</Label>
-                    <Input type="number" value={sheetCount} onChange={(e) => setSheetCount(e.target.value)} className="border-blue-300" />
+                    <Input type="number" value={sheetCount} onChange={(e) => setSheetCount(e.target.value)} className="border-blue-300 text-center font-black" />
                   </div>
                   <div className="col-span-2">
                     <Label className="text-xs">سعر الطباعة لكل 250 فرخ (ج.م)</Label>
