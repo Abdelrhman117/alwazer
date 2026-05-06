@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { useClients, useInvoices, generateInvoiceNumber } from "@/lib/store"
+import { useClients, useInvoices, useSettings, generateInvoiceNumber } from "@/lib/store"
 import {
   addInvoice, deleteInvoice, updateInvoice,
   addClientTransaction,
@@ -71,6 +71,7 @@ export default function InvoicesPage() {
   const { user } = useAuth()
   const { clients } = useClients()
   const { invoices: savedInvoices, loading } = useInvoices()
+  const { settings } = useSettings()
 
   // ── Builder ──────────────────────────────────────────────────────────────
   const [selectedClientId, setSelectedClientId]   = useState("")
@@ -299,31 +300,93 @@ export default function InvoicesPage() {
 
   // ─────────────────────────────────────────────────── PRINT VIEW ──────────
   if (printInv) {
-    const items = printInv.items || []
-    const total = printInv.totalPrice || 0
-    const disc  = printInv.discount  || 0
-    const subT  = total + disc
+    const items      = printInv.items || []
+    const total      = printInv.totalPrice || 0
+    const disc       = printInv.discount   || 0
+    const paid       = printInv.paidAmount || 0
+    const remaining  = total - paid
+    const subT       = total + disc
     const clientPhone = clients.find(c => c.id === printInv.customerId)?.phone || ""
+    const statusLabel = INVOICE_STATUS_LABELS[printInv.status || "quote"]
+    const companyName  = settings.companyName    || "مطبعة الوزير"
+    const companyPhone = settings.companyPhone   || ""
+    const companyAddr  = settings.companyAddress || ""
+    const MIN_ROWS = 10
+
     return (
       <div className="bg-white min-h-screen" dir="rtl">
-        <style>{`@media print { body{margin:0} @page{margin:8mm;size:A4 landscape} }`}</style>
-        {/* Header */}
+        <style>{`
+          @media print {
+            body { margin: 0; }
+            @page { margin: 8mm; size: A4 landscape; }
+            .no-print { display: none !important; }
+          }
+        `}</style>
+
+        {/* ── Back button (hidden on print) ── */}
+        <div className="no-print flex gap-3 p-3 bg-gray-100 border-b">
+          <button
+            onClick={() => setPrintInv(null)}
+            className="px-4 py-2 rounded-xl text-sm font-bold border-2 hover:bg-white transition-all"
+            style={{ borderColor: "#0F1F3D", color: "#0F1F3D" }}
+          >
+            ← رجوع
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="px-6 py-2 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90"
+            style={{ background: "#0F1F3D" }}
+          >
+            🖨️ طباعة
+          </button>
+        </div>
+
+        {/* ── Header ── */}
         <div className="flex justify-between items-start p-5 border-b-4" style={{ borderColor: "#0F1F3D" }}>
+          {/* Company info */}
           <div>
-            <h2 className="text-base font-black" style={{ color: "#0F1F3D" }}>شركة الوزير للدعاية والإعلان</h2>
-            <p className="text-xs text-gray-500 mt-0.5">البحيرة - إيتاي البارود - أمام مسجد قباء</p>
-            <p className="text-xs font-bold text-gray-600" dir="ltr">01115538224 - 01092201036</p>
+            <h2 className="text-base font-black" style={{ color: "#0F1F3D" }}>{companyName}</h2>
+            {companyAddr  && <p className="text-xs text-gray-500 mt-0.5">{companyAddr}</p>}
+            {companyPhone && <p className="text-xs font-bold text-gray-600" dir="ltr">{companyPhone}</p>}
           </div>
+          {/* Logo */}
           <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: "#0F1F3D" }}>
             <span className="text-2xl font-black" style={{ color: "#F5C518" }}>و</span>
           </div>
-          <div className="text-left border rounded-lg p-2.5 text-xs space-y-1" style={{ borderColor: "#DCE3F5" }}>
-            <div className="flex gap-2"><span className="font-bold text-gray-400">اسم العميل:</span><span className="font-black">{printInv.clientName}</span></div>
-            <div className="flex gap-2"><span className="font-bold text-gray-400">الصفة:</span><span>عرض سعر</span></div>
-            <div className="flex gap-2"><span className="font-bold text-gray-400">رقم الموبايل:</span><span dir="ltr">{clientPhone}</span></div>
+          {/* Invoice meta */}
+          <div className="border rounded-lg p-2.5 text-xs space-y-1.5" style={{ borderColor: "#DCE3F5", minWidth: 200 }}>
+            <div className="flex justify-between gap-4">
+              <span className="font-bold text-gray-400">اسم العميل:</span>
+              <span className="font-black">{printInv.clientName}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="font-bold text-gray-400">رقم الفاتورة:</span>
+              <span className="font-black" dir="ltr">{printInv.invoiceNumber}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="font-bold text-gray-400">التاريخ:</span>
+              <span className="font-bold" dir="ltr">{printInv.date}</span>
+            </div>
+            {printInv.deliveryDate && (
+              <div className="flex justify-between gap-4">
+                <span className="font-bold text-gray-400">موعد التسليم:</span>
+                <span className="font-bold" dir="ltr">{printInv.deliveryDate}</span>
+              </div>
+            )}
+            <div className="flex justify-between gap-4">
+              <span className="font-bold text-gray-400">الحالة:</span>
+              <span className="font-black" style={{ color: "#0F1F3D" }}>{statusLabel}</span>
+            </div>
+            {clientPhone && clientPhone !== "لا يوجد" && (
+              <div className="flex justify-between gap-4">
+                <span className="font-bold text-gray-400">رقم الموبايل:</span>
+                <span dir="ltr">{clientPhone}</span>
+              </div>
+            )}
           </div>
         </div>
-        {/* Table */}
+
+        {/* ── Table ── */}
         <div className="p-4">
           <table className="w-full border-collapse text-xs">
             <thead>
@@ -337,7 +400,7 @@ export default function InvoicesPage() {
               {items.map((it, i) => (
                 <tr key={i} style={{ background: i % 2 === 0 ? "white" : "#F4F6FB" }}>
                   <td className="border p-2 font-bold" style={{ borderColor: "#DCE3F5" }}>{it.category || "طباعة"}</td>
-                  <td className="border p-2" style={{ borderColor: "#DCE3F5" }}>{it.name}</td>
+                  <td className="border p-2"            style={{ borderColor: "#DCE3F5" }}>{it.name}</td>
                   <td className="border p-2 text-center" style={{ borderColor: "#DCE3F5" }}>{it.qty}</td>
                   <td className="border p-2 text-center" style={{ borderColor: "#DCE3F5" }}>{it.unit || "كرتونة"}</td>
                   <td className="border p-2 text-center font-mono" style={{ borderColor: "#DCE3F5" }}>{fmt(it.unitPrice)}</td>
@@ -346,7 +409,7 @@ export default function InvoicesPage() {
                   <td className="border p-2" style={{ borderColor: "#DCE3F5" }}></td>
                 </tr>
               ))}
-              {Array.from({ length: Math.max(0, 10 - items.length) }).map((_, i) => (
+              {Array.from({ length: Math.max(0, MIN_ROWS - items.length) }).map((_, i) => (
                 <tr key={`e-${i}`} style={{ background: (items.length + i) % 2 === 0 ? "white" : "#F4F6FB" }}>
                   {Array(8).fill(null).map((_, j) => <td key={j} className="border p-2 h-7" style={{ borderColor: "#DCE3F5" }} />)}
                 </tr>
@@ -354,22 +417,50 @@ export default function InvoicesPage() {
             </tbody>
           </table>
         </div>
-        {/* Footer */}
-        <div className="px-4 pb-3 flex justify-between items-end">
-          <div>{printInv.notes && <p className="text-xs text-gray-500 italic">{printInv.notes}</p>}</div>
-          <div className="text-xs space-y-1 min-w-[250px]">
-            {disc > 0 && <div className="flex justify-between gap-6"><span className="font-bold">قبل الخصم:</span><span className="font-black">{fmt(subT)}</span></div>}
-            <div className="flex justify-between gap-6"><span className="font-bold">إجمالي الفاتورة:</span><span className="font-black text-base">{fmt(total)}</span></div>
-            <div className="flex justify-between gap-6"><span className="font-bold">اجمالي التنزل:</span><span className="font-black">0</span></div>
-            <div className="flex justify-between gap-6 pt-1 border-t-2" style={{ borderColor: "#0F1F3D" }}>
-              <span className="font-bold">باقي:</span>
-              <span className="font-black" style={{ color: "#D97706" }}>{fmt(total)}</span>
+
+        {/* ── Footer ── */}
+        <div className="px-4 pb-3 flex justify-between items-end gap-6">
+          <div className="flex-1">
+            {printInv.notes && <p className="text-xs text-gray-500 italic border rounded p-2" style={{ borderColor: "#DCE3F5" }}>{printInv.notes}</p>}
+          </div>
+          <div className="text-xs space-y-1.5" style={{ minWidth: 260 }}>
+            {disc > 0 && (
+              <div className="flex justify-between gap-6">
+                <span className="font-bold">المجموع قبل الخصم:</span>
+                <span className="font-black">{fmt(subT)} ج.م</span>
+              </div>
+            )}
+            {disc > 0 && (
+              <div className="flex justify-between gap-6 text-red-600">
+                <span className="font-bold">الخصم:</span>
+                <span className="font-black">- {fmt(disc)} ج.م</span>
+              </div>
+            )}
+            <div className="flex justify-between gap-6">
+              <span className="font-bold">إجمالي الفاتورة:</span>
+              <span className="font-black text-sm">{fmt(total)} ج.م</span>
+            </div>
+            <div className="flex justify-between gap-6">
+              <span className="font-bold">إجمالي التنزيل:</span>
+              <span className="font-black text-green-700">{fmt(paid)} ج.م</span>
+            </div>
+            <div className="flex justify-between gap-6 pt-1.5 border-t-2" style={{ borderColor: "#0F1F3D" }}>
+              <span className="font-bold text-sm">الباقي:</span>
+              <span className="font-black text-base" style={{ color: remaining > 0 ? "#D97706" : "#16A34A" }}>
+                {fmt(remaining)} ج.م
+              </span>
             </div>
           </div>
         </div>
-        <div className="px-4 pb-3 space-y-1.5">
-          <div className="py-2 text-center font-black text-sm text-white rounded" style={{ background: "#DC2626" }}>تسليم الأوردر خلا 14 يوم عمل رسمي</div>
-          <div className="py-2 text-center font-black text-sm rounded" style={{ background: "#F5C518", color: "#0F1F3D" }}>يتم دفع 50% عند الاتفاق و50% عند الاستلام</div>
+
+        {/* ── Banners ── */}
+        <div className="px-4 pb-4 space-y-1.5">
+          <div className="py-2 text-center font-black text-sm text-white rounded" style={{ background: "#DC2626" }}>
+            تسليم الأوردر خلال 14 يوم عمل رسمي
+          </div>
+          <div className="py-2 text-center font-black text-sm rounded" style={{ background: "#F5C518", color: "#0F1F3D" }}>
+            يتم دفع 50% عند الاتفاق و50% عند الاستلام
+          </div>
         </div>
       </div>
     )
