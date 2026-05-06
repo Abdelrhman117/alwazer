@@ -323,7 +323,7 @@ export default function ClientsPage() {
 
       {/* Client Details Dialog */}
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="w-full max-w-screen-xl h-[95vh] overflow-hidden rounded-2xl p-4 md:p-6 border border-gray-200 shadow-lg bg-white text-right flex flex-col gap-4">
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="w-full max-w-screen-xl h-[95vh] overflow-hidden rounded-2xl p-4 md:p-6 border border-gray-200 shadow-lg bg-white text-right flex flex-col gap-4" showCloseButton={false}>
           {/* Header */}
           <div className="bg-slate-900 p-4 md:p-6 text-white relative rounded-xl shrink-0">
             <Button variant="ghost" size="icon" onClick={() => setIsDetailsOpen(false)} className="absolute top-4 right-4 text-white/60 hover:text-white hover:bg-white/10 rounded-full h-10 w-10"><X className="w-6 h-6" /></Button>

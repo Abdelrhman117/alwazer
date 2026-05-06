@@ -734,7 +734,7 @@ export default function InvoicesPage() {
 
       {/* ── Add/Edit Item Dialog ── */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="max-w-lg rounded-2xl p-0 overflow-hidden" dir="rtl">
+        <DialogContent className="max-w-lg rounded-2xl p-0 overflow-hidden" dir="rtl" showCloseButton={false}>
           <div className="px-5 py-4 flex items-center justify-between" style={{ background: "var(--wazer-navy)" }}>
             <DialogTitle className="text-base font-black text-white flex items-center gap-2">
               <Plus className="w-4 h-4" style={{ color: "var(--wazer-yellow)" }} />
@@ -813,7 +813,7 @@ export default function InvoicesPage() {
       {/* ── Invoice Detail Dialog ── */}
       {detailInv && (
         <Dialog open={!!detailInv} onOpenChange={v => !v && setDetailInv(null)}>
-          <DialogContent className="max-w-2xl max-h-[92vh] overflow-hidden flex flex-col rounded-2xl p-0" dir="rtl">
+          <DialogContent className="max-w-2xl max-h-[92vh] overflow-hidden flex flex-col rounded-2xl p-0" dir="rtl" showCloseButton={false}>
             {/* Header */}
             <div className="px-5 py-4 flex items-center justify-between shrink-0" style={{ background: "var(--wazer-navy)" }}>
               <div>

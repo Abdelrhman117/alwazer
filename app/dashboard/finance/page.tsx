@@ -281,7 +281,7 @@ export default function SuppliersPage() {
 
       {/* Supplier Details Dialog */}
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent className="w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-2xl p-0 bg-white flex flex-col" dir="rtl">
+        <DialogContent className="w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-2xl p-0 bg-white flex flex-col" dir="rtl" showCloseButton={false}>
           <div className="bg-slate-900 p-5 text-white relative">
             <Button variant="ghost" size="icon" onClick={() => setIsDetailsOpen(false)} className="absolute top-4 right-4 text-white/60 hover:text-white hover:bg-white/10 rounded-full h-9 w-9"><X className="w-5 h-5" /></Button>
             <DialogTitle className="text-2xl font-black">{selectedSupplier?.name}</DialogTitle>
